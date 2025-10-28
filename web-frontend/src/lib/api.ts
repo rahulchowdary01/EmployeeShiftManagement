@@ -1,5 +1,18 @@
+/**
+ * API client for communicating with the FastAPI backend.
+ * 
+ * This module provides a centralized API client that handles all HTTP requests
+ * to the backend services. It includes type definitions for data models and
+ * utility functions for making API calls with proper error handling.
+ */
+
+// Base URL for API requests - defaults to localhost:8000 for development
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 
+/**
+ * Type definition for Employee data structure.
+ * Matches the backend Employee model schema.
+ */
 export type Employee = {
   id: number
   first_name: string
@@ -10,6 +23,14 @@ export type Employee = {
   avatar_url?: string | null
 }
 
+/**
+ * Generic function to make HTTP requests to the API.
+ * 
+ * @param path - API endpoint path (e.g., '/employees/')
+ * @param init - Optional fetch configuration (method, body, etc.)
+ * @returns Promise resolving to the parsed JSON response
+ * @throws Error if the HTTP request fails
+ */
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -42,16 +63,33 @@ export const api = {
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json() as { url: string }
       return `${API_BASE}${data.url}`
-    }
+    },
+    delete: (id: number) => fetchJson(`/employees/${id}`, { method: 'DELETE' }),
   },
   shifts: {
     list: () => fetchJson<any[]>('/shifts/'),
     create: (body: any) => fetchJson<any>('/shifts/', { method: 'POST', body: JSON.stringify(body) }),
+    delete: (id: number) => fetchJson(`/shifts/${id}`, { method: 'DELETE' }),
+  },
+  ai: {
+    optimizeSchedule: () => fetchJson('/ai/optimize-schedule', { method: 'POST' }),
+    suggestAssignment: (employeeId: number, shiftId: number) => 
+      fetchJson(`/ai/suggest-assignment?employee_id=${employeeId}&shift_id=${shiftId}`, { method: 'POST' }),
+    getInsights: () => fetchJson('/ai/insights', { method: 'POST' }),
+    chat: (query: string) => fetchJson('/ai/chat', { 
+      method: 'POST', 
+      body: JSON.stringify({ query }) 
+    }),
+    analyzeWorkforce: (analysisType: string = 'comprehensive') => fetchJson('/ai/analyze-workforce', {
+      method: 'POST',
+      body: JSON.stringify({ analysis_type: analysisType })
+    }),
+    getLangChainInfo: () => fetchJson('/ai/langchain-info'),
   },
   assignments: {
     list: () => fetchJson<any[]>('/assignments/'),
     create: (body: any) => fetchJson<any>('/assignments/', { method: 'POST', body: JSON.stringify(body) }),
     autoBalance: () => fetchJson<{ created: number }>('/assignments/auto-balance', { method: 'POST' }),
+    delete: (id: number) => fetchJson(`/assignments/${id}`, { method: 'DELETE' }),
   },
 }
-

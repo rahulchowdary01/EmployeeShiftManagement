@@ -14,6 +14,7 @@ export default function Employees() {
   const [phone, setPhone] = useState('')
   const [avatar_url, setAvatar] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState<number | null>(null)
 
   async function load() {
     try {
@@ -88,10 +89,13 @@ export default function Employees() {
   async function onDelete(id: number) {
     if (!confirm('Are you sure you want to delete this employee? This will also remove all their shift assignments.')) return
     try {
+      setDeleting(id)
       await api.employees.delete(id)
       await load()
     } catch (e: any) {
       setError(e.message)
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -175,26 +179,32 @@ export default function Employees() {
                     <td style={{ padding: '16px 12px' }}>
                       <button 
                         onClick={() => onDelete(e.id)} 
+                        disabled={deleting === e.id}
                         style={{ 
-                          background: 'linear-gradient(135deg, #ff4757, #ff3742)', 
+                          background: deleting === e.id ? 'linear-gradient(135deg, #95a5a6, #7f8c8d)' : 'linear-gradient(135deg, #ff4757, #ff3742)', 
                           color: 'white', 
                           border: 'none', 
                           padding: '12px 16px', 
                           borderRadius: 8, 
-                          cursor: 'pointer', 
+                          cursor: deleting === e.id ? 'not-allowed' : 'pointer', 
                           fontSize: 18, 
                           fontWeight: 600, 
                           minWidth: '50px', 
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center',
-                          boxShadow: '0 4px 12px rgba(255, 71, 87, 0.3)',
-                          transition: 'all 0.3s ease'
+                          boxShadow: deleting === e.id ? 'none' : '0 4px 12px rgba(255, 71, 87, 0.3)',
+                          transition: 'all 0.3s ease',
+                          opacity: deleting === e.id ? 0.6 : 1
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        onMouseOver={(event) => {
+                          if (deleting !== e.id) {
+                            event.currentTarget.style.transform = 'scale(1.05)'
+                          }
+                        }}
+                        onMouseOut={(event) => event.currentTarget.style.transform = 'scale(1)'}
                       >
-                        🗑️
+                        {deleting === e.id ? '⏳' : '🗑️'}
                       </button>
                     </td>
                   </tr>

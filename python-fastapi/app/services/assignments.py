@@ -74,3 +74,11 @@ def auto_balance_assignments(db: Session) -> Dict[str, int]:
 
     db.flush()
     return {"created": created}
+
+
+def delete_assignment(db: Session, assignment_id: int) -> bool:
+    assignment = db.get(ShiftAssignment, assignment_id)
+    if not assignment:
+        return False
+    db.delete(assignment)
+    return True

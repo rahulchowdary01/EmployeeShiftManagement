@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.models.employee import Employee, Department
+from app.models.assignment import ShiftAssignment
 from app.schemas.common import EmployeeCreate, EmployeeUpdate
 
 
@@ -35,6 +36,11 @@ def delete_employee(db: Session, employee_id: int) -> bool:
     employee = db.get(Employee, employee_id)
     if not employee:
         return False
+    
+    # Delete all assignments for this employee first
+    db.query(ShiftAssignment).filter(ShiftAssignment.employee_id == employee_id).delete()
+    
+    # Then delete the employee
     db.delete(employee)
     return True
 
