@@ -9,6 +9,34 @@ from app.schemas.common import AssignmentCreate
 
 
 def assign_employee(db: Session, payload: AssignmentCreate) -> ShiftAssignment:
+    # prevent duplicate assignment (unique constraint already), and prevent overlapping assignments
+    shift = db.get(Shift, payload.shift_id)
+    if not shift:
+        raise ValueError("Shift not found")
+    # already assigned same pair
+    exists_same = db.scalars(select(ShiftAssignment).where(
+        ShiftAssignment.employee_id == payload.employee_id,
+        ShiftAssignment.shift_id == payload.shift_id
+    )).first()
+    if exists_same:
+        raise ValueError("This employee is already assigned to this shift")
+    # check if employee already has a shift on same date overlapping time
+    from sqlalchemy import and_
+    overlap = list(db.scalars(
+        select(ShiftAssignment)
+        .join(Shift, Shift.id == ShiftAssignment.shift_id)
+        .where(
+            and_(
+                ShiftAssignment.employee_id == payload.employee_id,
+                Shift.date == shift.date,
+                # time overlap: start < other_end and end > other_start
+                Shift.start_time < shift.end_time,
+                Shift.end_time > shift.start_time,
+            )
+        )
+    ))
+    if overlap:
+        raise ValueError("Employee already assigned to an overlapping shift")
     assignment = ShiftAssignment(**payload.model_dump())
     db.add(assignment)
     db.flush()
