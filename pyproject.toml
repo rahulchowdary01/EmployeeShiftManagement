@@ -1,0 +1,14 @@
+[tool.basedpyright]
+pythonVersion = "3.9"
+venvPath = "python-fastapi"
+venv = ".venv"
+reportMissingImports = "warning"
+reportMissingModuleSource = "warning"
+include = ["python-fastapi/app", "python-fastapi/tests"]
+executionEnvironments = [
+  { root = "python-fastapi", extraPaths = ["python-fastapi"] }
+]
+
+[tool.pyright]
+venvPath = "python-fastapi"
+venv = ".venv"

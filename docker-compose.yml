@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ems_user
+      POSTGRES_PASSWORD: ems_pass
+      POSTGRES_DB: ems_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ems_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+  api:
+    build: ./python-fastapi
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ems_user:ems_pass@postgres:5432/ems_db}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+volumes:
+  ems_pgdata:

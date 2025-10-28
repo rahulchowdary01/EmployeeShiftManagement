@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-wheel-metadata/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+
+# Coverage/Reports
+.pytest_cache/
+htmlcov/
+.coverage*
+
+# Migrations cache (AlEmbic creates py files that should be tracked, but not pyc)
+python-fastapi/alembic/versions/__pycache__/
+
+# Local env
+.env
+
+# Docker
+**/node_modules/
+**/.dockerignore
+**/.env.local
+**/.env.*.local
+**/.cache/
+**/.ruff_cache/
+
