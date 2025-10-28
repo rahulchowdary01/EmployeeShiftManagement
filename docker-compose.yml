@@ -21,6 +21,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ems_user:ems_pass@postgres:5432/ems_db}
     ports:
       - "8000:8000"
+    volumes:
+      - ems_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,3 +37,4 @@ services:
       - api
 volumes:
   ems_pgdata:
+  ems_uploads:
