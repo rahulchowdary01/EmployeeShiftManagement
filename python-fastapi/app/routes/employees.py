@@ -1,5 +1,7 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import JSONResponse
+import os
 from sqlalchemy.orm import Session
 
 from app.connectors.postgres import get_session
@@ -57,3 +59,16 @@ def create_dept(name: str, db: Session = Depends(get_db)):
 @router.get("/departments", response_model=List[DepartmentRead])
 def list_dept(db: Session = Depends(get_db)):
     return list_departments(db)
+
+@router.post("/upload-avatar")
+async def upload_avatar(file: UploadFile = File(...)):
+    uploads_dir = os.getenv("UPLOADS_DIR", "/app/uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    name = file.filename or "avatar"
+    # ensure unique file name
+    import uuid
+    safe_name = f"{uuid.uuid4().hex}_{name.replace('/', '_')}"
+    path = os.path.join(uploads_dir, safe_name)
+    with open(path, "wb") as f:
+        f.write(await file.read())
+    return {"url": f"/uploads/{safe_name}"}
