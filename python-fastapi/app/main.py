@@ -11,9 +11,14 @@ from app.routes.ai import router as ai_router
 
 app = FastAPI(title="Employee Shift Management System", version="0.1.0")
 
+# CORS configuration - supports both development and production
+cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# Handle both comma and semicolon separators
+cors_origins = [origin.strip() for origin in cors_origins_env.replace(";", ",").split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

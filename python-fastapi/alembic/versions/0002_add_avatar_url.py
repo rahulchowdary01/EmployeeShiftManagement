@@ -8,7 +8,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column('employees', sa.Column('avatar_url', sa.String(length=500), nullable=True))
+    # Check if column exists before adding (idempotent migration)
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    columns = [col['name'] for col in inspector.get_columns('employees')]
+    
+    if 'avatar_url' not in columns:
+        op.add_column('employees', sa.Column('avatar_url', sa.String(length=500), nullable=True))
 
 
 def downgrade() -> None:
