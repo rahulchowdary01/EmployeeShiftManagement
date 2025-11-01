@@ -41,6 +41,8 @@ def ensure_week_shifts(
     source_shifts = [s for s in all_shifts if source_start <= s.date <= source_end]
 
     clone_map: Dict[int, int] = {}
+    # Clone each shift from the previous week, preserving key details so the
+    # frontend can immediately display a template schedule for review.
     for shift in source_shifts:
         clone = Shift(
             name=shift.name,
@@ -53,6 +55,7 @@ def ensure_week_shifts(
         db.flush()
         clone_map[clone.id] = shift.id
 
+    # Read back the newly created rows so the caller receives up-to-date models.
     refreshed = list_shifts(db)
     target_shifts = [s for s in refreshed if target_start <= s.date <= target_end]
     return target_shifts, clone_map

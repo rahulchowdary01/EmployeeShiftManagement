@@ -279,7 +279,9 @@ def _next_monday(today: date) -> date:
 async def generate_schedule(request: GenerateScheduleRequest, db: Session = Depends(get_db)):
     """Generate a proactive schedule proposal for the requested window."""
 
+    # Clamp the request to a reasonable horizon: minimum 1 week, maximum 4.
     weeks = max(1, min(4, request.weeks))
+    # Default to the next Monday so users can request "next week" without a date.
     start_period = request.start_date or _next_monday(date.today())
     end_period = start_period + timedelta(days=weeks * 7 - 1)
 
@@ -287,6 +289,8 @@ async def generate_schedule(request: GenerateScheduleRequest, db: Session = Depe
     shifts = list_shifts(db)
     assignments = list_assignments(db)
 
+    # Ensure there are shifts in the requested window. If none exist yet,
+    # clone the previous week's template using the helper in the shift service.
     target_shifts = [s for s in shifts if start_period <= s.date <= end_period]
     clone_map = {}
     if not target_shifts:
@@ -339,6 +343,8 @@ async def generate_schedule(request: GenerateScheduleRequest, db: Session = Depe
             start_date=start_period,
             end_date=end_period,
         )
+        # When the AI (or heuristic) cannot provide suggestions, fall back to
+        # cloning the previous week's assignments so users still see a schedule.
         if not result.get("proposed_assignments"):
             source_shifts_by_key = {
                 (shift.date, shift.name): shift for shift in shifts

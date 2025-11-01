@@ -127,6 +127,7 @@ class AIService:
     ) -> Dict[str, Any]:
         """Generate a proactive schedule proposal for the requested window."""
 
+        # Only consider shifts that fall inside the requested scheduling window.
         period_shifts = [
             shift for shift in shifts
             if start_date <= datetime.fromisoformat(str(shift["date"])).date() <= end_date
@@ -178,6 +179,7 @@ class AIService:
             except json.JSONDecodeError:
                 parsed_assignments = None
 
+        # Guard against proposals that reference shifts outside the target window.
         valid_shift_ids = {
             int(shift["id"])
             for shift in period_shifts
@@ -227,6 +229,8 @@ class AIService:
             )
             ai_error = f"{ai_error}. {window_msg}".strip(". ") if ai_error else window_msg
 
+        # Fall back to deterministic generation when the LLM does not produce
+        # any usable assignments (for example due to formatting issues).
         if not parsed_assignments:
             parsed_assignments = self._fallback_schedule(employees, period_shifts, assignments)
             if parsed_assignments:
@@ -259,6 +263,7 @@ class AIService:
             return []
 
         def parse_shift_window(shift: Dict[str, Any]) -> tuple[datetime, datetime]:
+            """Return absolute datetimes for a shift, accounting for overnight spans."""
             shift_date = datetime.fromisoformat(str(shift["date"])).date()
             start_str = str(shift["start_time"])
             end_str = str(shift["end_time"])
@@ -278,6 +283,7 @@ class AIService:
                 end_dt += timedelta(days=1)
             return start_dt, end_dt
 
+        # Avoid proposing assignments for shifts that are already covered.
         already_assigned_shift_ids = {a["shift_id"] for a in assignments}
         pending_shifts = [s for s in shifts if s["id"] not in already_assigned_shift_ids]
 

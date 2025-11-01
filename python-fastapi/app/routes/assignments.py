@@ -97,6 +97,8 @@ def delete(assignment_id: int, db: Session = Depends(get_db)):
 def update(assignment_id: int, payload: AssignmentUpdate, db: Session = Depends(get_db)):
     """Update an existing shift assignment."""
     try:
+        # Allow callers to swap either the employee, the shift, or both while
+        # letting the service layer enforce overlap and duplication rules.
         return update_assignment(db, assignment_id, payload)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

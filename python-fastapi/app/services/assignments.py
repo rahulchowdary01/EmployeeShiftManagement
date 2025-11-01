@@ -83,6 +83,8 @@ def auto_balance_assignments(db: Session) -> Dict[str, int]:
         return {"created": 0}
 
     created = 0
+    # Track how many shifts each employee already has so we can spread new
+    # assignments as evenly as possible.
     employee_to_count = {e.id: 0 for e in employees}
     for assignment in db.scalars(select(ShiftAssignment)):
         employee_to_count[assignment.employee_id] = employee_to_count.get(assignment.employee_id, 0) + 1
@@ -117,6 +119,8 @@ def update_assignment(db: Session, assignment_id: int, payload: AssignmentUpdate
     if not assignment:
         raise ValueError("Assignment not found")
 
+    # Support partial updates: use provided fields when present or fall back to
+    # the persisted values.
     new_employee_id = payload.employee_id if payload.employee_id is not None else assignment.employee_id
     new_shift_id = payload.shift_id if payload.shift_id is not None else assignment.shift_id
 
