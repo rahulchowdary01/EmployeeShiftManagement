@@ -55,6 +55,7 @@ const calendarTheme = {
   headerBg: 'rgba(126, 91, 239, 0.08)',
 }
 
+// Defensive parsing helpers to guard against backend schema drift.
 const safeNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {
@@ -100,6 +101,7 @@ const toTimeString = (value: unknown): string | null => {
   return null
 }
 
+// Normalise API responses so downstream rendering logic can assume shape + types.
 const normalizeAssignments = (raw: any[]): Assignment[] => {
   if (!Array.isArray(raw)) return []
   return raw
@@ -184,6 +186,8 @@ export default function Assignments() {
   const [calendarError, setCalendarError] = useState<string>('')
 
   useEffect(() => {
+    // Inject a custom theme for react-big-calendar so we can restyle it without
+    // maintaining a fork of the component styles.
     const calendarStyles = document.createElement('style')
     calendarStyles.id = 'assignments-calendar-theme'
     calendarStyles.textContent = `
@@ -346,6 +350,7 @@ export default function Assignments() {
   }, [])
 
   const load = useCallback(async () => {
+    // Fetch the full dataset in parallel; the view components filter locally.
     setLoading(true)
     try {
       const [assignmentData, employeeData, shiftData] = await Promise.all([
@@ -403,6 +408,7 @@ export default function Assignments() {
     return employees.filter(e => (`${e.first_name} ${e.last_name} ${e.email}`).toLowerCase().includes(s))
   }, [employees, query])
 
+  // Map assignments into Calendar event objects expected by react-big-calendar.
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     return items
       .map<CalendarEvent | null>(assignment => {
@@ -455,6 +461,7 @@ export default function Assignments() {
     return shifts.filter(shift => !assignedIds.has(shift.id))
   }, [shifts, items])
 
+  // Apply consistent styling to events based on shift type (morning/afternoon/night).
   const eventPropGetter = useCallback<EventPropGetter<CalendarEvent>>((event: CalendarEvent) => {
     const palette: Record<string, { bg: string, border: string, text: string }> = {
       MORNING: { bg: 'rgba(129, 140, 248, 0.32)', border: '#818cf8', text: '#1f2937' },
@@ -537,6 +544,8 @@ export default function Assignments() {
     }) ?? null
   }, [shifts])
 
+  // Shared handler for drag+drop and resize operations. It looks up the
+  // matching shift window and performs the backend update if valid.
   const processEventMutation = useCallback(async (event: CalendarEvent, startInput: Date | string, endInput: Date | string) => {
     const start = typeof startInput === 'string' ? new Date(startInput) : startInput
     const end = typeof endInput === 'string' ? new Date(endInput) : endInput
