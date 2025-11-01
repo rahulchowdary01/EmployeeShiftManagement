@@ -85,11 +85,20 @@ export const api = {
       body: JSON.stringify({ analysis_type: analysisType })
     }),
     getLangChainInfo: () => fetchJson('/ai/langchain-info'),
+    generateSchedule: (body?: { start_date?: string, weeks?: number }) =>
+      fetchJson('/ai/generate-schedule', {
+        method: 'POST',
+        body: JSON.stringify(body ?? {}),
+      }),
   },
   assignments: {
     list: () => fetchJson<any[]>('/assignments/'),
+    listByRange: (start: string, end: string) =>
+      fetchJson<any[]>(`/assignments/?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+    listAll: () => fetchJson<any[]>('/assignments/?start=1970-01-01&end=2100-12-31'),
     create: (body: any) => fetchJson<any>('/assignments/', { method: 'POST', body: JSON.stringify(body) }),
     autoBalance: () => fetchJson<{ created: number }>('/assignments/auto-balance', { method: 'POST' }),
+    update: (id: number, body: any) => fetchJson(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: number) => fetchJson(`/assignments/${id}`, { method: 'DELETE' }),
   },
 }
