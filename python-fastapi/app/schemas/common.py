@@ -103,6 +103,12 @@ class AssignmentCreate(AssignmentBase):
     """Schema for creating a new shift assignment."""
     pass
 
+class AssignmentUpdate(BaseModel):
+    """Schema for updating an existing shift assignment."""
+    employee_id: Optional[int] = None
+    shift_id: Optional[int] = None
+
+
 class AssignmentRead(AssignmentBase):
     """Schema for reading assignment data with ID."""
     id: int

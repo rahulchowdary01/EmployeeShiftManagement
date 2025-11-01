@@ -6,7 +6,8 @@ shift optimization, employee assignment suggestions, business insights,
 workforce analysis, and conversational AI chat functionality using LangChain.
 """
 
-from typing import List, Dict, Any
+from datetime import date, timedelta
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -14,7 +15,7 @@ from pydantic import BaseModel
 from app.connectors.postgres import get_session
 from app.services.ai_service import ai_service
 from app.services.employees import list_employees
-from app.services.shifts import list_shifts
+from app.services.shifts import list_shifts, ensure_week_shifts
 from app.services.assignments import list_assignments
 
 # Create a new router for all AI-related endpoints.
@@ -44,6 +45,12 @@ class ChatRequest(BaseModel):
 class WorkforceAnalysisRequest(BaseModel):
     """Pydantic model for the /analyze-workforce endpoint request body."""
     analysis_type: str = "comprehensive"
+
+
+class GenerateScheduleRequest(BaseModel):
+    """Pydantic model for proactive schedule generation."""
+    start_date: Optional[date] = None
+    weeks: int = 1
 
 # --- API Endpoints ---
 
@@ -262,6 +269,128 @@ async def analyze_workforce(request: WorkforceAnalysisRequest, db: Session = Dep
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workforce analysis failed: {str(e)}")
+
+def _next_monday(today: date) -> date:
+    days_ahead = (7 - today.weekday()) % 7
+    return today + timedelta(days=days_ahead or 7)
+
+
+@router.post("/generate-schedule")
+async def generate_schedule(request: GenerateScheduleRequest, db: Session = Depends(get_db)):
+    """Generate a proactive schedule proposal for the requested window."""
+
+    weeks = max(1, min(4, request.weeks))
+    start_period = request.start_date or _next_monday(date.today())
+    end_period = start_period + timedelta(days=weeks * 7 - 1)
+
+    employees = list_employees(db)
+    shifts = list_shifts(db)
+    assignments = list_assignments(db)
+
+    target_shifts = [s for s in shifts if start_period <= s.date <= end_period]
+    clone_map = {}
+    if not target_shifts:
+        target_shifts, clone_map = ensure_week_shifts(
+            db,
+            target_start=start_period,
+            target_end=end_period,
+        )
+        shifts = list_shifts(db)
+        target_shifts = [s for s in shifts if start_period <= s.date <= end_period]
+
+    employees_data = [
+        {
+            "id": emp.id,
+            "first_name": emp.first_name,
+            "last_name": emp.last_name,
+            "email": emp.email,
+            "phone": emp.phone,
+            "department_id": emp.department_id,
+        }
+        for emp in employees
+    ]
+
+    shifts_data = [
+        {
+            "id": shift.id,
+            "name": shift.name,
+            "date": shift.date.isoformat(),
+            "start_time": shift.start_time.isoformat(),
+            "end_time": shift.end_time.isoformat(),
+            "shift_type": shift.shift_type,
+        }
+        for shift in shifts
+    ]
+
+    assignments_data = [
+        {
+            "id": assignment.id,
+            "employee_id": assignment.employee_id,
+            "shift_id": assignment.shift_id,
+        }
+        for assignment in assignments
+    ]
+
+    try:
+        result = ai_service.generate_schedule_proposal(
+            employees_data,
+            shifts_data,
+            assignments_data,
+            start_date=start_period,
+            end_date=end_period,
+        )
+        if not result.get("proposed_assignments"):
+            source_shifts_by_key = {
+                (shift.date, shift.name): shift for shift in shifts
+                if shift.date < start_period
+            }
+            assignments_by_shift = {assignment.shift_id: assignment for assignment in assignments}
+
+            cloned_notes = []
+            proposals = []
+            for target_shift in target_shifts:
+                source_shift_id = clone_map.get(target_shift.id)
+                source_shift = None
+                if source_shift_id:
+                    source_shift = next(
+                        (s for s in shifts if s.id == source_shift_id),
+                        None,
+                    )
+                if not source_shift:
+                    source_key = (target_shift.date - timedelta(days=7), target_shift.name)
+                    source_shift = source_shifts_by_key.get(source_key)
+                if not source_shift:
+                    continue
+                assignment = assignments_by_shift.get(source_shift.id)
+                if not assignment:
+                    continue
+                proposals.append(
+                    {
+                        "shift_id": target_shift.id,
+                        "employee_id": assignment.employee_id,
+                        "reason": (
+                            f"Copied from {source_shift.name} on {source_shift.date.isoformat()}"
+                        ),
+                    }
+                )
+                cloned_notes.append(source_shift.id)
+
+            if proposals:
+                note = (
+                    "Shift templates copied from the previous week to build the requested window."
+                )
+                if result.get("summary"):
+                    result["summary"] = f"{result['summary']} {note}"
+                else:
+                    result["summary"] = note
+                result["proposed_assignments"] = proposals
+                result["success"] = True
+                if not result.get("ai_error"):
+                    result["ai_error"] = None
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Schedule generation failed: {str(e)}")
+
 
 @router.get("/langchain-info")
 async def langchain_info():

@@ -1,4 +1,5 @@
-from typing import List, Optional
+from datetime import date, timedelta
+from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -16,6 +17,45 @@ def create_shift(db: Session, payload: ShiftCreate) -> Shift:
 
 def list_shifts(db: Session) -> List[Shift]:
     return list(db.scalars(select(Shift)))
+
+
+def ensure_week_shifts(
+    db: Session,
+    *,
+    target_start: date,
+    target_end: date,
+) -> Tuple[List[Shift], Dict[int, int]]:
+    """Ensure shifts exist for the requested week.
+
+    Returns the list of shifts covering the requested window and a mapping of
+    newly cloned shift IDs -> source shift IDs (from the prior week).
+    """
+
+    all_shifts = list_shifts(db)
+    target_shifts = [s for s in all_shifts if target_start <= s.date <= target_end]
+    if target_shifts:
+        return target_shifts, {}
+
+    source_start = target_start - timedelta(days=7)
+    source_end = target_end - timedelta(days=7)
+    source_shifts = [s for s in all_shifts if source_start <= s.date <= source_end]
+
+    clone_map: Dict[int, int] = {}
+    for shift in source_shifts:
+        clone = Shift(
+            name=shift.name,
+            date=shift.date + timedelta(days=7),
+            start_time=shift.start_time,
+            end_time=shift.end_time,
+            shift_type=shift.shift_type,
+        )
+        db.add(clone)
+        db.flush()
+        clone_map[clone.id] = shift.id
+
+    refreshed = list_shifts(db)
+    target_shifts = [s for s in refreshed if target_start <= s.date <= target_end]
+    return target_shifts, clone_map
 
 
 def get_shift(db: Session, shift_id: int):

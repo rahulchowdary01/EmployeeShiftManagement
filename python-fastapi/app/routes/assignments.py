@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.connectors.postgres import get_session
 
 # Import Pydantic schemas for request body (Create) and response (Read)
-from app.schemas.common import AssignmentCreate, AssignmentRead
+from app.schemas.common import AssignmentCreate, AssignmentRead, AssignmentUpdate
 
 # Import the business logic functions (service layer)
 from app.services.assignments import (
@@ -22,6 +22,7 @@ from app.services.assignments import (
     list_assignments,
     auto_balance_assignments,
     delete_assignment,
+    update_assignment,
 )
 
 # Create a new router for all assignment-related endpoints.
@@ -90,3 +91,12 @@ def delete(assignment_id: int, db: Session = Depends(get_db)):
         
     # On success, return a confirmation message
     return {"deleted": True}
+
+
+@router.put("/{assignment_id}", response_model=AssignmentRead)
+def update(assignment_id: int, payload: AssignmentUpdate, db: Session = Depends(get_db)):
+    """Update an existing shift assignment."""
+    try:
+        return update_assignment(db, assignment_id, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
