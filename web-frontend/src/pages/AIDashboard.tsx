@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { api } from '../lib/api'
 
 // ---------- Types & Helpers ----------
+// These utilities normalise the sometimes-unstructured LLM responses into
+// predictable data that the UI components can safely render.
 type JsonRecord = Record<string, unknown>
 type JsonValue = string | number | boolean | null | JsonRecord | JsonValue[]
 
@@ -100,6 +102,7 @@ type CoverageGap = {
   shift_type?: string
 }
 
+// Lightweight display components shared across the three AI panels.
 const InsightCard: React.FC<{ label: string; items: Array<{ title: string; detail: string }> }> = ({ label, items }) => (
   <div>
     <h4 style={{ color: 'var(--accent)', marginBottom: 8 }}>{label}</h4>
@@ -198,6 +201,7 @@ export default function AIDashboard() {
     getLangChainInfo()
   }, [])
 
+  // Break down LangChain metadata ahead of render so the JSX stays tidy.
   const langchainFeatures: string[] = Array.isArray(langchainInfo?.features)
     ? langchainInfo.features as string[]
     : []

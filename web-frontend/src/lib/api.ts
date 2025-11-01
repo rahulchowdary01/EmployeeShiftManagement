@@ -85,6 +85,7 @@ export const api = {
       body: JSON.stringify({ analysis_type: analysisType })
     }),
     getLangChainInfo: () => fetchJson('/ai/langchain-info'),
+    // Kick off proactive AI scheduling for a given window.
     generateSchedule: (body?: { start_date?: string, weeks?: number }) =>
       fetchJson('/ai/generate-schedule', {
         method: 'POST',
@@ -93,8 +94,10 @@ export const api = {
   },
   assignments: {
     list: () => fetchJson<any[]>('/assignments/'),
+    // Helper used by legacy views that still request filtered results from the API.
     listByRange: (start: string, end: string) =>
       fetchJson<any[]>(`/assignments/?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+    // Current UI loads everything once then filters client-side.
     listAll: () => fetchJson<any[]>('/assignments/?start=1970-01-01&end=2100-12-31'),
     create: (body: any) => fetchJson<any>('/assignments/', { method: 'POST', body: JSON.stringify(body) }),
     autoBalance: () => fetchJson<{ created: number }>('/assignments/auto-balance', { method: 'POST' }),
